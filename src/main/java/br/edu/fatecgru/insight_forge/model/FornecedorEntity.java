@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -29,4 +30,7 @@ public class FornecedorEntity {
 
     @Column(name = "data_cadastro", nullable = false)
     private LocalDate dataCadastro;
+
+    @ManyToMany(mappedBy = "fornecedores")
+    private List<ProdutoEntity> produtos;
 }

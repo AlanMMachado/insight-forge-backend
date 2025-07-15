@@ -12,51 +12,34 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class EstoqueService {
 
-//    private final EstoqueRepository estoqueRepository;
-//
-//    public EstoqueEntity registrarMovimento(EstoqueEntity movimento) {
-//        return estoqueRepository.save(movimento);
-//    }
-//
-//    public List<EstoqueEntity> listarMovimentosPorProduto(Long produtoId) {
-//        return estoqueRepository.findByProdutoId(produtoId);
-//    }
-
     private final EstoqueRepository estoqueRepository;
 
-    // 🔄 CREATE ou UPDATE
-    public EstoqueEntity registrarOuAtualizarMovimento(EstoqueEntity movimento) {
-        return estoqueRepository.save(movimento);
+    public EstoqueEntity salvarOuAtualizar(EstoqueEntity estoque) {
+        return estoqueRepository.save(estoque);
     }
 
-    // 📄 READ - Listar todos os movimentos
-    public List<EstoqueEntity> listarTodosMovimentos() {
+    public List<EstoqueEntity> listarTodos() {
         return estoqueRepository.findAll();
     }
 
-    // 🔍 READ - Buscar movimento por ID
-    public Optional<EstoqueEntity> buscarMovimentoPorId(Long id) {
+    public Optional<EstoqueEntity> buscarPorId(Long id) {
         return estoqueRepository.findById(id);
     }
 
-    // 🔍 READ - Listar por produto
-    public List<EstoqueEntity> listarMovimentosPorProduto(Long produtoId) {
+    public List<EstoqueEntity> listarPorProduto(Long produtoId) {
         return estoqueRepository.findByProdutoId(produtoId);
     }
 
-    // ✏️ UPDATE - Atualizar movimento existente
-    public EstoqueEntity atualizarMovimento(Long id, EstoqueEntity dadosAtualizados) {
-        return estoqueRepository.findById(id).map(movimento -> {
-            movimento.setProduto(dadosAtualizados.getProduto());
-            movimento.setTipoMovimento(dadosAtualizados.getTipoMovimento());
-            movimento.setQuantidade(dadosAtualizados.getQuantidade());
-            movimento.setDataMovimento(dadosAtualizados.getDataMovimento());
-            return estoqueRepository.save(movimento);
-        }).orElseThrow(() -> new RuntimeException("Movimento de estoque não encontrado com ID: " + id));
+    public EstoqueEntity atualizar(Long id, EstoqueEntity dadosAtualizados) {
+        return estoqueRepository.findById(id).map(estoque -> {
+            estoque.setProduto(dadosAtualizados.getProduto());
+            estoque.setQuantidade(dadosAtualizados.getQuantidade());
+            estoque.setDataCadastro(dadosAtualizados.getDataCadastro());
+            return estoqueRepository.save(estoque);
+        }).orElseThrow(() -> new RuntimeException("Estoque não encontrado com ID: " + id));
     }
 
-    // ❌ DELETE - Remover movimento por ID
-    public void deletarMovimentoPorId(Long id) {
+    public void deletarPorId(Long id) {
         estoqueRepository.deleteById(id);
     }
 }

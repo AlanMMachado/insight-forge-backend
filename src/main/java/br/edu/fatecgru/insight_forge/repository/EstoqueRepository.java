@@ -9,6 +9,4 @@ import java.util.List;
 @Repository
 public interface EstoqueRepository extends JpaRepository<EstoqueEntity, Long> {
     List<EstoqueEntity> findByProdutoId(Long produtoId);
-
-
 }

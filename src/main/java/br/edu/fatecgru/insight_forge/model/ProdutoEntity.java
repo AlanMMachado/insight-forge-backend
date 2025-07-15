@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -19,7 +20,7 @@ public class ProdutoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "nome", nullable = false, length = 100)
     private String nome;
 
     @Column(columnDefinition = "TEXT")
@@ -28,12 +29,13 @@ public class ProdutoEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
-    @ManyToOne
-    @JoinColumn(name = "fornecedor_id")
-    private FornecedorEntity fornecedor;
-
-    @Column(name = "data_cadastro", nullable = false)
-    private LocalDate dataCadastro;
+    @ManyToMany
+    @JoinTable(
+        name = "produto_fornecedor",
+        joinColumns = @JoinColumn(name = "produto_id"),
+        inverseJoinColumns = @JoinColumn(name = "fornecedor_id")
+    )
+    private List<FornecedorEntity> fornecedores;
 
     @Column(nullable = false)
     private Boolean ativo = true;

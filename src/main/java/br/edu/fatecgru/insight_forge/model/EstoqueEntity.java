@@ -14,10 +14,6 @@ import java.time.LocalDateTime;
 @Table(name = "tb_estoque")
 public class EstoqueEntity {
 
-    public enum TipoMovimento {
-        ENTRADA, SAIDA, AJUSTE
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,13 +22,9 @@ public class EstoqueEntity {
     @JoinColumn(name = "produto_id", nullable = false)
     private ProdutoEntity produto;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_movimento", nullable = false, length = 10)
-    private TipoMovimento tipoMovimento;
-
-    @Column(nullable = false)
+    @Column(name = "quantidade", nullable = false)
     private Integer quantidade;
 
-    @Column(name = "data_movimento", nullable = false)
-    private LocalDateTime dataMovimento;
+    @Column(name = "data_cadastro", nullable = false)
+    private LocalDateTime dataCadastro;
 }

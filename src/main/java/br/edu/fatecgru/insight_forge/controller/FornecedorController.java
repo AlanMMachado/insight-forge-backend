@@ -18,21 +18,21 @@ public class FornecedorController {
     }
 
     // 🔄 CREATE
-    @PostMapping
+    @PostMapping("/criarFornecedor")
     public ResponseEntity<FornecedorEntity> criarFornecedor(@RequestBody FornecedorEntity fornecedor) {
         FornecedorEntity novoFornecedor = fornecedorService.salvarOuAtualizarFornecedor(fornecedor);
         return ResponseEntity.status(HttpStatus.CREATED).body(novoFornecedor);
     }
 
     // 📄 READ - Listar todos
-    @GetMapping
+    @GetMapping("/listarFornecedores")
     public ResponseEntity<List<FornecedorEntity>> listarFornecedores() {
         List<FornecedorEntity> fornecedores = fornecedorService.listarTodos();
         return ResponseEntity.ok(fornecedores);
     }
 
     // 🔍 READ - Buscar por ID
-    @GetMapping("/{id}")
+    @GetMapping("/buscarPorId/{id}")
     public ResponseEntity<FornecedorEntity> buscarPorId(@PathVariable Long id) {
         return fornecedorService.buscarPorId(id)
                 .map(ResponseEntity::ok)
@@ -40,7 +40,7 @@ public class FornecedorController {
     }
 
     // ✏️ UPDATE
-    @PutMapping("/{id}")
+    @PutMapping("/atualizarFornecedor/{id}")
     public ResponseEntity<FornecedorEntity> atualizarFornecedor(
             @PathVariable Long id,
             @RequestBody FornecedorEntity dadosAtualizados) {
@@ -54,7 +54,7 @@ public class FornecedorController {
     }
 
     // ❌ DELETE
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/deletarFornecedor/{id}")
     public ResponseEntity<Void> deletarFornecedor(@PathVariable Long id) {
         fornecedorService.deletarPorId(id);
         return ResponseEntity.noContent().build();
