@@ -22,16 +22,12 @@ public class MovimentacaoEntity {
     @JoinColumn(name = "produto_id", nullable = false)
     private ProdutoEntity produto;
 
-    @ManyToOne
-    @JoinColumn(name = "estoque_id", nullable = false)
-    private EstoqueEntity estoque;
+    @Column(name = "quantidade_movimentada", nullable = false)
+    private int quantidadeMovimentada;
 
-    @Column(name = "data_entrada")
-    private LocalDate dataEntrada;
+    @Column(name = "data_movimentacao", nullable = false)
+    private LocalDate dataMovimentacao;
 
-    @Column(name = "data_saída")
-    private LocalDate dataSaida;
-
-    @Column(name = "tipo_movimetacao")
+    @Column(name = "tipo_movimentacao")
     private String tipoMovimentacao;
 }

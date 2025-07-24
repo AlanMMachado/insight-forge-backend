@@ -23,11 +23,17 @@ public class ProdutoEntity {
     @Column(name = "nome", nullable = false, length = 100)
     private String nome;
 
-    @Column(columnDefinition = "TEXT")
-    private String descricao;
-
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
+
+    @Column(name = "categoria")
+    private String categoria;
+
+    @Column(name = "descricao", columnDefinition = "TEXT")
+    private String descricao;
+
+    @Column(name = "quantidade_estoque")
+    private int quantidadeEstoque;
 
     @ManyToMany
     @JoinTable(
