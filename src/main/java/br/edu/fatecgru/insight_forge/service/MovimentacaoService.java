@@ -33,8 +33,20 @@ public class MovimentacaoService {
         return movimentacaoRepository.findAll();
     }
 
-    public Optional<MovimentacaoEntity> buscarPorId(Long id) {
+    public Optional<MovimentacaoEntity> buscarPorMovimentacaoId(Long id) {
         return movimentacaoRepository.findById(id);
+    }
+
+    public List<MovimentacaoEntity> listarPorProdutoId(Long produtoId) {
+        return movimentacaoRepository.findByProdutoId(produtoId);
+    }
+
+    public List<MovimentacaoEntity> listarPorTipoMovimentacao(String tipoMovimentacao) {
+        return movimentacaoRepository.findByTipoMovimentacao(tipoMovimentacao);
+    }
+
+    public List<MovimentacaoEntity> listarPorIntervaloDeDatas(LocalDate dataInicio, LocalDate dataFim) {
+        return movimentacaoRepository.findByDataMovimentacaoBetween(dataInicio, dataFim);
     }
 
     public void deletarPorId(Long id) {

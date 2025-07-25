@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -35,9 +36,29 @@ public class MovimentacaoController {
 
     @GetMapping("/buscarPorId/{id}")
     public ResponseEntity<MovimentacaoEntity> buscarPorId(@PathVariable Long id) {
-        return movimentacaoService.buscarPorId(id)
+        return movimentacaoService.buscarPorMovimentacaoId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/filtrarPorTipo")
+    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorTipo(@RequestParam String tipo) {
+        List<MovimentacaoEntity> lista = movimentacaoService.listarPorTipoMovimentacao(tipo);
+        return ResponseEntity.ok(lista);
+    }
+
+    @GetMapping("/filtrarPorData")
+    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorData(@RequestParam String dataInicio, @RequestParam String dataFim) {
+        LocalDate inicio = LocalDate.parse(dataInicio);
+        LocalDate fim = LocalDate.parse(dataFim);
+        List<MovimentacaoEntity> lista = movimentacaoService.listarPorIntervaloDeDatas(inicio, fim);
+        return ResponseEntity.ok(lista);
+    }
+
+    @GetMapping("/filtrarPorProduto")
+    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorProduto(@RequestParam Long produtoId) {
+        List<MovimentacaoEntity> lista = movimentacaoService.listarPorProdutoId(produtoId);
+        return ResponseEntity.ok(lista);
     }
 
     @PutMapping("/atualizarMovimentacao/{id}")
