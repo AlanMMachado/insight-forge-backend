@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -18,6 +17,7 @@ public class ProdutoEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false, unique = true)
     private Long id;
 
     @Column(name = "nome", nullable = false, length = 100)
@@ -35,7 +35,7 @@ public class ProdutoEntity {
     @Column(name = "quantidade_estoque")
     private int quantidadeEstoque;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
         name = "produto_fornecedor",
         joinColumns = @JoinColumn(name = "produto_id"),
@@ -45,4 +45,8 @@ public class ProdutoEntity {
 
     @Column(nullable = false)
     private Boolean ativo = true;
+
+    // Garantir que ProdutoEntity seja independente
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MovimentacaoEntity> movimentacoes;
 }

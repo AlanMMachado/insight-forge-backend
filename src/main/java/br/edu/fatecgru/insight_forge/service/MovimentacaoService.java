@@ -56,6 +56,7 @@ public class MovimentacaoService {
     public MovimentacaoEntity atualizar(Long id, MovimentacaoEntity dadosAtualizados) {
         return movimentacaoRepository.findById(id).map(movimentacao -> {
             movimentacao.setProduto(dadosAtualizados.getProduto());
+            movimentacao.setQuantidadeMovimentada(dadosAtualizados.getQuantidadeMovimentada());
             movimentacao.setDataMovimentacao(dadosAtualizados.getDataMovimentacao());
             movimentacao.setTipoMovimentacao(dadosAtualizados.getTipoMovimentacao());
             return movimentacaoRepository.save(movimentacao);

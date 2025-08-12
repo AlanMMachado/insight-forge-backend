@@ -16,7 +16,7 @@ public class MovimentacaoEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name = "produto_id", nullable = false)
