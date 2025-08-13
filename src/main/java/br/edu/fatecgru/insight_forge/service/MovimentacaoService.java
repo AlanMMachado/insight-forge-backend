@@ -1,5 +1,7 @@
 package br.edu.fatecgru.insight_forge.service;
 
+import br.edu.fatecgru.insight_forge.converter.MovimentacaoConverter;
+import br.edu.fatecgru.insight_forge.dto.MovimentacaoDTO;
 import br.edu.fatecgru.insight_forge.model.MovimentacaoEntity;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.repository.MovimentacaoRepository;
@@ -24,6 +26,7 @@ public class MovimentacaoService {
 
     private final MovimentacaoRepository movimentacaoRepository;
     private final ProdutoRepository produtoRepository;
+    private final MovimentacaoConverter movimentacaoConverter;
 
     public MovimentacaoEntity salvarOuAtualizar(MovimentacaoEntity movimentacao) {
         return movimentacaoRepository.save(movimentacao);
@@ -154,5 +157,13 @@ public class MovimentacaoService {
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
+    }
+
+    public List<MovimentacaoDTO> listarTodasDTO() {
+        return movimentacaoConverter.toDTOList(movimentacaoRepository.findAll());
+    }
+
+    public MovimentacaoDTO toDTO(MovimentacaoEntity entity) {
+        return movimentacaoConverter.toDTO(entity);
     }
 }

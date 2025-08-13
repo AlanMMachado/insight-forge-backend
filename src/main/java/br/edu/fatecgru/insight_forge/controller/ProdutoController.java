@@ -1,9 +1,12 @@
 package br.edu.fatecgru.insight_forge.controller;
 
+import br.edu.fatecgru.insight_forge.converter.ProdutoConverter;
+import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.service.ProdutoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,51 +18,67 @@ import java.util.List;
 public class ProdutoController {
 
     private final ProdutoService produtoService;
+    private final ProdutoConverter produtoConverter;
 
-    public ProdutoController(ProdutoService produtoService) {
+    public ProdutoController(ProdutoService produtoService, ProdutoConverter produtoConverter) {
         this.produtoService = produtoService;
+        this.produtoConverter = produtoConverter;
     }
 
     @PostMapping("/criarProduto")
-    public ResponseEntity<ProdutoEntity> criarProduto(@RequestBody ProdutoEntity produto) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<ProdutoDTO> criarProduto(@RequestBody ProdutoEntity produto) {
         ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProduto(produto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(novoProduto);
+        ProdutoDTO dto = produtoConverter.toDTO(novoProduto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
     @GetMapping("/listarProdutos")
-    public ResponseEntity<List<ProdutoEntity>> listarProdutos() {
-        List<ProdutoEntity> produtos = produtoService.listarTodosProdutos();
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<ProdutoDTO>> listarProdutos() {
+        List<ProdutoDTO> produtos = produtoService.listarTodosProdutosDTO();
         return ResponseEntity.ok(produtos);
     }
 
+    @GetMapping("/listarCategorias")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<String>> listarCategorias() {
+        List<String> categorias = produtoService.listarCategorias();
+        return ResponseEntity.ok(categorias); // Retorna lista vazia se não houver categorias
+    }
+
     @GetMapping("/buscarProdutoPorId/{id}")
-    public ResponseEntity<ProdutoEntity> buscarProdutoPorId(@PathVariable Long id) {
-        return produtoService.buscarProdutoPorId(id)
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<ProdutoDTO> buscarProdutoPorId(@PathVariable Long id) {
+        return produtoService.buscarProdutoPorIdDTO(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/buscarProdutoPorCategoria/{categoria}")
-    public ResponseEntity<ProdutoEntity> buscarProdutoPorCategoria(@RequestParam String categoria) {
-        List<ProdutoEntity> produtos = produtoService.buscarProdutosPorCategoria(categoria);
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<ProdutoDTO>> buscarProdutoPorCategoria(@RequestParam String categoria) {
+        List<ProdutoDTO> produtos = produtoService.buscarProdutosPorCategoriaDTO(categoria);
         if (produtos.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(produtos.get(0)); // Retorna o primeiro produto encontrado
+        return ResponseEntity.ok(produtos);
     }
 
     @GetMapping("/buscarProdutoPorNome/{nome}")
-    public ResponseEntity<ProdutoEntity> buscarProdutoPorNome(@RequestParam String nome){
-        List<ProdutoEntity> produtos = produtoService.buscarProdutosPorNome(nome);
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<ProdutoDTO>> buscarProdutoPorNome(@RequestParam String nome){
+        List<ProdutoDTO> produtos = produtoService.buscarProdutosPorNomeDTO(nome);
         if (produtos.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(produtos.get(0)); // Retorna o primeiro produto encontrado
+        return ResponseEntity.ok(produtos);
     }
 
     @GetMapping("/buscarProdutosAtivos")
-    public ResponseEntity<List<ProdutoEntity>> buscarProdutosAtivos(@RequestParam Boolean ativo) {
-        List<ProdutoEntity> produtos = produtoService.buscarProdutosAtivos(ativo);
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<ProdutoDTO>> buscarProdutosAtivos(@RequestParam Boolean ativo) {
+        List<ProdutoDTO> produtos = produtoService.buscarProdutosAtivosDTO(ativo);
         if (produtos.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -67,6 +86,7 @@ public class ProdutoController {
     }
 
     @PostMapping("/importarProdutos")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<String> importarProdutos(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, selecione um arquivo para importar.");
@@ -82,6 +102,7 @@ public class ProdutoController {
     }
 
     @GetMapping("/exportarProdutos")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<byte[]> exportarProdutos() {
         try {
             byte[] arquivo = produtoService.exportarProdutos();
@@ -94,21 +115,21 @@ public class ProdutoController {
     }
 
     @PutMapping("/atualizarProduto/{id}")
-    public ResponseEntity<ProdutoEntity> atualizarProduto(@PathVariable Long id, @RequestBody ProdutoEntity produtoAtualizado) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<ProdutoDTO> atualizarProduto(@PathVariable Long id, @RequestBody ProdutoEntity produtoAtualizado) {
         try {
             ProdutoEntity atualizado = produtoService.atualizarProduto(id, produtoAtualizado);
-            return ResponseEntity.ok(atualizado);
+            ProdutoDTO dto = produtoConverter.toDTO(atualizado);
+            return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
     @DeleteMapping("/deletarProduto/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<Void> deletarProduto(@PathVariable Long id) {
         produtoService.deletarProdutoPorId(id);
         return ResponseEntity.noContent().build();
     }
 }
-
-
-

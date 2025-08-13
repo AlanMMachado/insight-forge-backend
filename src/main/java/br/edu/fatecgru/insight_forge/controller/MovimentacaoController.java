@@ -1,10 +1,12 @@
 package br.edu.fatecgru.insight_forge.controller;
 
+import br.edu.fatecgru.insight_forge.dto.MovimentacaoDTO;
 import br.edu.fatecgru.insight_forge.model.MovimentacaoEntity;
 import br.edu.fatecgru.insight_forge.service.MovimentacaoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,55 +25,72 @@ public class MovimentacaoController {
     }
 
     @PostMapping("/criarMovimentacao")
-    public ResponseEntity<MovimentacaoEntity> criarMovimentacao(@RequestBody MovimentacaoEntity movimentacao) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<MovimentacaoDTO> criarMovimentacao(@RequestBody MovimentacaoEntity movimentacao) {
         MovimentacaoEntity nova = movimentacaoService.salvarOuAtualizar(movimentacao);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nova);
+        MovimentacaoDTO dto = movimentacaoService.toDTO(nova);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
     @GetMapping("/listarMovimentacoes")
-    public ResponseEntity<List<MovimentacaoEntity>> listarMovimentacoes() {
-        List<MovimentacaoEntity> lista = movimentacaoService.listarTodas();
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<MovimentacaoDTO>> listarMovimentacoes() {
+        List<MovimentacaoDTO> lista = movimentacaoService.listarTodasDTO();
         return ResponseEntity.ok(lista);
     }
 
     @GetMapping("/buscarPorId/{id}")
-    public ResponseEntity<MovimentacaoEntity> buscarPorId(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<MovimentacaoDTO> buscarPorId(@PathVariable Long id) {
         return movimentacaoService.buscarPorMovimentacaoId(id)
+                .map(movimentacaoService::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/filtrarPorTipo")
-    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorTipo(@RequestParam String tipo) {
-        List<MovimentacaoEntity> lista = movimentacaoService.listarPorTipoMovimentacao(tipo);
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<MovimentacaoDTO>> filtrarPorTipo(@RequestParam String tipo) {
+        List<MovimentacaoDTO> lista = movimentacaoService.listarPorTipoMovimentacao(tipo).stream()
+                .map(movimentacaoService::toDTO)
+                .toList();
         return ResponseEntity.ok(lista);
     }
 
     @GetMapping("/filtrarPorData")
-    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorData(@RequestParam String dataInicio, @RequestParam String dataFim) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<MovimentacaoDTO>> filtrarPorData(@RequestParam String dataInicio, @RequestParam String dataFim) {
         LocalDate inicio = LocalDate.parse(dataInicio);
         LocalDate fim = LocalDate.parse(dataFim);
-        List<MovimentacaoEntity> lista = movimentacaoService.listarPorIntervaloDeDatas(inicio, fim);
+        List<MovimentacaoDTO> lista = movimentacaoService.listarPorIntervaloDeDatas(inicio, fim).stream()
+                .map(movimentacaoService::toDTO)
+                .toList();
         return ResponseEntity.ok(lista);
     }
 
     @GetMapping("/filtrarPorProduto")
-    public ResponseEntity<List<MovimentacaoEntity>> filtrarPorProduto(@RequestParam Long produtoId) {
-        List<MovimentacaoEntity> lista = movimentacaoService.listarPorProdutoId(produtoId);
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<List<MovimentacaoDTO>> filtrarPorProduto(@RequestParam Long produtoId) {
+        List<MovimentacaoDTO> lista = movimentacaoService.listarPorProdutoId(produtoId).stream()
+                .map(movimentacaoService::toDTO)
+                .toList();
         return ResponseEntity.ok(lista);
     }
 
     @PutMapping("/atualizarMovimentacao/{id}")
-    public ResponseEntity<MovimentacaoEntity> atualizarMovimentacao(@PathVariable Long id, @RequestBody MovimentacaoEntity dadosAtualizados) {
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<MovimentacaoDTO> atualizarMovimentacao(@PathVariable Long id, @RequestBody MovimentacaoEntity dadosAtualizados) {
         try {
             MovimentacaoEntity atualizado = movimentacaoService.atualizar(id, dadosAtualizados);
-            return ResponseEntity.ok(atualizado);
+            MovimentacaoDTO dto = movimentacaoService.toDTO(atualizado);
+            return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
     @DeleteMapping("/deletarMovimentacao/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<Void> deletarMovimentacao(@PathVariable Long id) {
         movimentacaoService.deletarPorId(id);
         return ResponseEntity.noContent().build();
@@ -79,6 +98,7 @@ public class MovimentacaoController {
 
     // Endpoint para importar movimentações via arquivo Excel
     @PostMapping("/importarMovimentacoes")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<String> importarMovimentacoes(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, selecione um arquivo para importar.");
@@ -94,6 +114,7 @@ public class MovimentacaoController {
     }
 
     @GetMapping("/exportarMovimentacoesPorProduto")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<byte[]> exportarMovimentacoesPorProduto(@RequestParam Long produtoId) {
         try {
             byte[] arquivo = movimentacaoService.exportarMovimentacoesPorProduto(produtoId);
@@ -107,6 +128,7 @@ public class MovimentacaoController {
     }
 
     @GetMapping("/exportarMovimentacoesPorCategoria")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<byte[]> exportarMovimentacoesPorCategoria(@RequestParam String categoria) {
         try {
             byte[] arquivo = movimentacaoService.exportarMovimentacoesPorCategoria(categoria);

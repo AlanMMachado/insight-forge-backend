@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
@@ -58,6 +58,21 @@ public class AuthController {
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Credenciais inválidas"));
+        }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
+        try {
+            String nome = request.get("nome");
+            String email = request.get("email");
+            String password = request.get("password");
+            String role = "USER"; // Role padrão para registro público
+
+            UsuarioEntity user = usuarioService.registrarUsuario(nome, email, password, role);
+            return ResponseEntity.ok(Map.of("message", "Usuário registrado com sucesso", "usuario", user));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

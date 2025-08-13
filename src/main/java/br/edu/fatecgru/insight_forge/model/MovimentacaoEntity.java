@@ -1,15 +1,14 @@
 package br.edu.fatecgru.insight_forge.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+
+@Getter
+@Setter
 @Entity
 @Table(name = "tb_movimentacao")
 public class MovimentacaoEntity {
@@ -20,6 +19,7 @@ public class MovimentacaoEntity {
 
     @ManyToOne
     @JoinColumn(name = "produto_id", nullable = false)
+    @JsonBackReference
     private ProdutoEntity produto;
 
     @Column(name = "quantidade_movimentada", nullable = false)

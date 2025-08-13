@@ -1,5 +1,7 @@
 package br.edu.fatecgru.insight_forge.service;
 
+import br.edu.fatecgru.insight_forge.converter.ProdutoConverter;
+import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.repository.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
+    private final ProdutoConverter produtoConverter;
 
     public ProdutoEntity salvarOuAtualizarProduto(ProdutoEntity produto) {
         return produtoRepository.save(produto);
@@ -34,20 +37,44 @@ public class ProdutoService {
         return produtoRepository.findAll();
     }
 
+    public List<ProdutoDTO> listarTodosProdutosDTO() {
+        return produtoConverter.toDTOList(produtoRepository.findAll());
+    }
+
     public List<ProdutoEntity> buscarProdutosPorCategoria(String categoria) {
         return produtoRepository.findByCategoria(categoria);
+    }
+
+    public List<ProdutoDTO> buscarProdutosPorCategoriaDTO(String categoria) {
+        return produtoConverter.toDTOList(produtoRepository.findByCategoria(categoria));
     }
 
     public List<ProdutoEntity> buscarProdutosAtivos(Boolean ativo) {
         return produtoRepository.findByAtivo(ativo);
     }
 
+    public List<ProdutoDTO> buscarProdutosAtivosDTO(Boolean ativo) {
+        return produtoConverter.toDTOList(produtoRepository.findByAtivo(ativo));
+    }
+
     public List<ProdutoEntity> buscarProdutosPorNome(String nome) {
         return produtoRepository.findByNomeContainingIgnoreCase(nome);
     }
 
+    public List<ProdutoDTO> buscarProdutosPorNomeDTO(String nome) {
+        return produtoConverter.toDTOList(produtoRepository.findByNomeContainingIgnoreCase(nome));
+    }
+
     public Optional<ProdutoEntity> buscarProdutoPorId(Long id) {
         return produtoRepository.findById(id);
+    }
+
+    public Optional<ProdutoDTO> buscarProdutoPorIdDTO(Long id) {
+        return produtoRepository.findById(id).map(produtoConverter::toDTO);
+    }
+
+    public List<String> listarCategorias() {
+        return produtoRepository.findDistinctCategorias();
     }
 
     // Recebe um arquivo temporário do endpoint de "importarProdutos", chama a função de importação síncrona, logo em seguida apaga o arquivo temporário
@@ -130,7 +157,7 @@ public class ProdutoService {
             produto.setDescricao(produtoAtualizado.getDescricao());
             produto.setCategoria(produtoAtualizado.getCategoria());
             produto.setPreco(produtoAtualizado.getPreco());
-            produto.setFornecedores(produtoAtualizado.getFornecedores());
+            produto.setFornecedor(produtoAtualizado.getFornecedor());
             produto.setAtivo(produtoAtualizado.getAtivo());
             return produtoRepository.save(produto);
         }).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));

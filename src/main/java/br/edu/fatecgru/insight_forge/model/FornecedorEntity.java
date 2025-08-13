@@ -1,16 +1,13 @@
 package br.edu.fatecgru.insight_forge.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "tb_fornecedor")
 public class FornecedorEntity {
@@ -31,6 +28,6 @@ public class FornecedorEntity {
     @Column(name = "data_cadastro", nullable = false)
     private LocalDate dataCadastro;
 
-    @ManyToMany(mappedBy = "fornecedores")
+    @OneToMany(mappedBy = "fornecedor", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProdutoEntity> produtos;
 }

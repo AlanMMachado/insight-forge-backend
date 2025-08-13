@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/usuarios")
+@RequestMapping("/api/usuarios")
 public class UsuarioController {
 
     @Autowired
@@ -58,21 +58,6 @@ public class UsuarioController {
             String email = request.get("email");
             String password = request.get("password");
             String role = request.get("role");
-
-            UsuarioEntity user = usuarioService.registrarUsuario(nome, email, password, role);
-            return ResponseEntity.ok(Map.of("message", "Usuário registrado com sucesso", "usuario", user));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    @PostMapping("/registrarUser")
-    public ResponseEntity<?> registrarUser(@RequestBody Map<String, String> request) {
-        try {
-            String nome = request.get("nome");
-            String email = request.get("email");
-            String password = request.get("password");
-            String role = "USER"; // Role padrão para usuários comuns
 
             UsuarioEntity user = usuarioService.registrarUsuario(nome, email, password, role);
             return ResponseEntity.ok(Map.of("message", "Usuário registrado com sucesso", "usuario", user));

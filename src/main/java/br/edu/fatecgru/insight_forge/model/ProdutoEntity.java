@@ -1,16 +1,13 @@
 package br.edu.fatecgru.insight_forge.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "tb_produto")
 public class ProdutoEntity {
@@ -29,24 +26,19 @@ public class ProdutoEntity {
     @Column(name = "categoria")
     private String categoria;
 
-    @Column(name = "descricao", columnDefinition = "TEXT")
+    @Column(name = "descricao")
     private String descricao;
 
     @Column(name = "quantidade_estoque")
     private int quantidadeEstoque;
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JoinTable(
-        name = "produto_fornecedor",
-        joinColumns = @JoinColumn(name = "produto_id"),
-        inverseJoinColumns = @JoinColumn(name = "fornecedor_id")
-    )
-    private List<FornecedorEntity> fornecedores;
-
     @Column(nullable = false)
     private Boolean ativo = true;
 
-    // Garantir que ProdutoEntity seja independente
+    @ManyToOne
+    @JoinColumn(name = "fornecedor_id")
+    private FornecedorEntity fornecedor;
+
     @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MovimentacaoEntity> movimentacoes;
 }
