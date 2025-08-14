@@ -17,6 +17,7 @@ public class ProdutoConverter {
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
         dto.setPreco(entity.getPreco());
+        dto.setCusto(entity.getCusto());
         dto.setCategoria(entity.getCategoria());
         dto.setDescricao(entity.getDescricao());
         dto.setQuantidadeEstoque(entity.getQuantidadeEstoque());
@@ -38,6 +39,7 @@ public class ProdutoConverter {
         entity.setId(dto.getId());
         entity.setNome(dto.getNome());
         entity.setPreco(dto.getPreco());
+        entity.setCusto(dto.getCusto());
         entity.setCategoria(dto.getCategoria());
         entity.setDescricao(dto.getDescricao());
         entity.setQuantidadeEstoque(dto.getQuantidadeEstoque());

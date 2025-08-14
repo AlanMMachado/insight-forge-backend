@@ -5,6 +5,7 @@ import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.repository.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -17,9 +18,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.transaction.annotation.Transactional;
 @Service
@@ -102,13 +100,13 @@ public class ProdutoService {
                 if (row == null) continue;
 
                 ProdutoEntity produto = new ProdutoEntity();
-                produto.setNome(row.getCell(0).getStringCellValue());
-                produto.setPreco(BigDecimal.valueOf(row.getCell(1).getNumericCellValue()));
-                produto.setDescricao(row.getCell(2).getStringCellValue());
-                produto.setCategoria(row.getCell(3).getStringCellValue());
-                produto.setQuantidadeEstoque((int) row.getCell(4).getNumericCellValue());
+                produto.setNome(getCellValueAsString(row.getCell(0)));
+                produto.setPreco(getCellValueAsBigDecimal(row.getCell(1)));
+                produto.setCusto(getCellValueAsBigDecimal(row.getCell(2)));
+                produto.setDescricao(getCellValueAsString(row.getCell(3)));
+                produto.setCategoria(getCellValueAsString(row.getCell(4)));
+                produto.setQuantidadeEstoque(getCellValueAsInteger(row.getCell(5)));
 
-                // Adapte para fornecedores se necessário
                 produtoRepository.save(produto);
             }
         } catch (Exception e) {
@@ -123,7 +121,7 @@ public class ProdutoService {
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Produtos");
-            String[] headers = {"Nome", "Descrição", "Preço", "Categoria", "Ativo"};
+            String[] headers = {"Nome", "Preço", "Custo", "Descrição", "Categoria", "Quantidade Estoque", "Ativo"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
@@ -133,10 +131,12 @@ public class ProdutoService {
             for (ProdutoEntity produto : produtos) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(produto.getNome());
-                row.createCell(1).setCellValue(produto.getDescricao());
-                row.createCell(2).setCellValue(produto.getPreco().doubleValue());
-                row.createCell(3).setCellValue(produto.getCategoria());
-                row.createCell(4).setCellValue(produto.getAtivo());
+                row.createCell(1).setCellValue(produto.getPreco() != null ? produto.getPreco().doubleValue() : 0.0);
+                row.createCell(2).setCellValue(produto.getCusto() != null ? produto.getCusto().doubleValue() : 0.0);
+                row.createCell(3).setCellValue(produto.getDescricao());
+                row.createCell(4).setCellValue(produto.getCategoria());
+                row.createCell(5).setCellValue(produto.getQuantidadeEstoque());
+                row.createCell(6).setCellValue(produto.getAtivo());
             }
 
             for (int i = 0; i < headers.length; i++) {
@@ -157,9 +157,47 @@ public class ProdutoService {
             produto.setDescricao(produtoAtualizado.getDescricao());
             produto.setCategoria(produtoAtualizado.getCategoria());
             produto.setPreco(produtoAtualizado.getPreco());
+            produto.setCusto(produtoAtualizado.getCusto());
+            produto.setQuantidadeEstoque(produtoAtualizado.getQuantidadeEstoque());
             produto.setFornecedor(produtoAtualizado.getFornecedor());
             produto.setAtivo(produtoAtualizado.getAtivo());
             return produtoRepository.save(produto);
         }).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
     }
+
+
+    // Métodos auxiliares para obter valores de células do Excel
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) return "";
+        return cell.getCellType() == CellType.STRING ? cell.getStringCellValue() : cell.toString();
+    }
+
+    private BigDecimal getCellValueAsBigDecimal(Cell cell) {
+        if (cell == null) return BigDecimal.ZERO;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
+        } else if (cell.getCellType() == CellType.STRING) {
+            try {
+                return new BigDecimal(cell.getStringCellValue());
+            } catch (NumberFormatException e) {
+                return BigDecimal.ZERO;
+            }
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private Integer getCellValueAsInteger(Cell cell) {
+        if (cell == null) return 0;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return (int) cell.getNumericCellValue();
+        } else if (cell.getCellType() == CellType.STRING) {
+            try {
+                return Integer.parseInt(cell.getStringCellValue());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
 }

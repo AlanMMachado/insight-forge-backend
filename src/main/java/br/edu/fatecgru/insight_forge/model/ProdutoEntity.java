@@ -23,6 +23,9 @@ public class ProdutoEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal custo;
+
     @Column(name = "categoria")
     private String categoria;
 

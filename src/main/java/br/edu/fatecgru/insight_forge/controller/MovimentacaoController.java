@@ -1,6 +1,7 @@
 package br.edu.fatecgru.insight_forge.controller;
 
 import br.edu.fatecgru.insight_forge.dto.MovimentacaoDTO;
+import br.edu.fatecgru.insight_forge.dto.ResultadoImportacaoMovimentacaoDTO;
 import br.edu.fatecgru.insight_forge.model.MovimentacaoEntity;
 import br.edu.fatecgru.insight_forge.service.MovimentacaoService;
 import org.springframework.http.HttpStatus;
@@ -26,10 +27,14 @@ public class MovimentacaoController {
 
     @PostMapping("/criarMovimentacao")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<MovimentacaoDTO> criarMovimentacao(@RequestBody MovimentacaoEntity movimentacao) {
-        MovimentacaoEntity nova = movimentacaoService.salvarOuAtualizar(movimentacao);
-        MovimentacaoDTO dto = movimentacaoService.toDTO(nova);
-        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    public ResponseEntity<?> criarMovimentacao(@RequestBody MovimentacaoEntity movimentacao) {
+        try {
+            MovimentacaoEntity nova = movimentacaoService.criarMovimentacao(movimentacao);
+            MovimentacaoDTO dto = movimentacaoService.toDTO(nova);
+            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/listarMovimentacoes")
@@ -99,15 +104,18 @@ public class MovimentacaoController {
     // Endpoint para importar movimentações via arquivo Excel
     @PostMapping("/importarMovimentacoes")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<String> importarMovimentacoes(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> importarMovimentacoes(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, selecione um arquivo para importar.");
         }
         try {
             File tempFile = File.createTempFile("movimentacoes", ".xlsx");
             file.transferTo(tempFile);
-            movimentacaoService.importarMovimentacoesAsync(tempFile);
-            return ResponseEntity.ok("Movimentações importadas com sucesso.");
+
+            ResultadoImportacaoMovimentacaoDTO resultado = movimentacaoService.importarMovimentacoes(tempFile);
+            tempFile.delete(); // Deletar o arquivo temporário
+
+            return ResponseEntity.ok(resultado);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao importar movimentações: " + e.getMessage());
         }
