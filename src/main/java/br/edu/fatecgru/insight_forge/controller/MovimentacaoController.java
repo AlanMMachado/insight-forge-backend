@@ -90,7 +90,8 @@ public class MovimentacaoController {
             MovimentacaoDTO dto = movimentacaoService.toDTO(atualizado);
             return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            String mensagem = e.getMessage() != null ? e.getMessage() : "Movimentação não encontrada com ID: " + id;
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Content-Type", "application/json").body(null);
         }
     }
 
@@ -142,6 +143,34 @@ public class MovimentacaoController {
             byte[] arquivo = movimentacaoService.exportarMovimentacoesPorCategoria(categoria);
             return ResponseEntity.ok()
                     .header("Content-Disposition", "attachment; filename=movimentacoes_categoria.xlsx")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(arquivo);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/exportarMovimentacoesPorData")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<byte[]> exportarMovimentacoesPorData(@RequestParam String dataInicio, @RequestParam String dataFim) {
+        try {
+            byte[] arquivo = movimentacaoService.exportarMovimentacoesPorData(dataInicio, dataFim);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=movimentacoes_data.xlsx")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(arquivo);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/exportarMovimentacoes")
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
+    public ResponseEntity<byte[]> exportarMovimentacoes() {
+        try {
+            byte[] arquivo = movimentacaoService.exportarMovimentacoes();
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=movimentacoes_todas.xlsx")
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .body(arquivo);
         } catch (Exception e) {

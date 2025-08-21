@@ -109,12 +109,64 @@ public class MovimentacaoService {
 
     public MovimentacaoEntity atualizar(Long id, MovimentacaoEntity dadosAtualizados) {
         return movimentacaoRepository.findById(id).map(movimentacao -> {
-            movimentacao.setProduto(dadosAtualizados.getProduto());
+            // Buscar o produto completo pelo id
+            ProdutoEntity produtoCompleto = produtoRepository.findById(dadosAtualizados.getProduto().getId())
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + dadosAtualizados.getProduto().getId()));
+
+            // Salvar valores antigos para ajuste de estoque
+            ProdutoEntity produtoAntigo = movimentacao.getProduto();
+            int quantidadeAntiga = movimentacao.getQuantidadeMovimentada();
+            String tipoAntigo = movimentacao.getTipoMovimentacao();
+
+            // Atualizar os dados da movimentação
+            movimentacao.setProduto(produtoCompleto);
             movimentacao.setQuantidadeMovimentada(dadosAtualizados.getQuantidadeMovimentada());
             movimentacao.setDataMovimentacao(dadosAtualizados.getDataMovimentacao());
             movimentacao.setTipoMovimentacao(dadosAtualizados.getTipoMovimentacao());
-            return movimentacaoRepository.save(movimentacao);
+
+            MovimentacaoEntity movimentacaoAtualizada = movimentacaoRepository.save(movimentacao);
+
+            try {
+                // Ajustar estoque do produto antigo (caso o produto tenha mudado)
+                if (!produtoAntigo.getId().equals(produtoCompleto.getId())) {
+                    // Reverter estoque do produto antigo
+                    ajustarEstoqueAoRemoverMovimentacao(produtoAntigo, quantidadeAntiga, tipoAntigo);
+                    // Aplicar estoque do novo produto
+                    atualizarEstoqueProduto(movimentacaoAtualizada);
+                } else {
+                    // Produto não mudou, ajustar diferença de quantidade/tipo
+                    ajustarEstoqueAoAtualizarMovimentacao(produtoAntigo, quantidadeAntiga, tipoAntigo, movimentacaoAtualizada);
+                }
+            } catch (Exception e) {
+                // Logar erro para diagnóstico
+                System.err.println("Erro ao ajustar estoque na atualização de movimentação: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Erro ao ajustar estoque: " + e.getMessage());
+            }
+
+            return movimentacaoAtualizada;
         }).orElseThrow(() -> new RuntimeException("Movimentação não encontrada com ID: " + id));
+    }
+
+    // Novo método auxiliar para ajustar estoque ao atualizar movimentação
+    private void ajustarEstoqueAoAtualizarMovimentacao(ProdutoEntity produto, int quantidadeAntiga, String tipoAntigo, MovimentacaoEntity movimentacaoAtualizada) {
+        int quantidadeNova = movimentacaoAtualizada.getQuantidadeMovimentada();
+        String tipoNovo = movimentacaoAtualizada.getTipoMovimentacao();
+
+        // Reverter estoque da movimentação antiga
+        ajustarEstoqueAoRemoverMovimentacao(produto, quantidadeAntiga, tipoAntigo);
+        // Aplicar estoque da movimentação nova
+        atualizarEstoqueProduto(movimentacaoAtualizada);
+    }
+
+    // Novo método auxiliar para reverter estoque ao remover movimentação
+    private void ajustarEstoqueAoRemoverMovimentacao(ProdutoEntity produto, int quantidade, String tipoMovimentacao) {
+        if ("COMPRA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - quantidade);
+        } else if ("VENDA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() + quantidade);
+        }
+        produtoRepository.save(produto);
     }
 
     @Async // Roda em uma thread separada
@@ -206,6 +258,13 @@ public class MovimentacaoService {
         List<MovimentacaoEntity> movimentacoes = movimentacaoRepository.findAll().stream()
                 .filter(m -> m.getProduto().getCategoria().equalsIgnoreCase(categoria))
                 .toList();
+        return gerarExcelMovimentacoes(movimentacoes);
+    }
+
+    public byte[] exportarMovimentacoesPorData(String dataInicio, String dataFim) throws IOException {
+        LocalDate inicio = LocalDate.parse(dataInicio);
+        LocalDate fim = LocalDate.parse(dataFim);
+        List<MovimentacaoEntity> movimentacoes = movimentacaoRepository.findByDataMovimentacaoBetween(inicio, fim);
         return gerarExcelMovimentacoes(movimentacoes);
     }
 
