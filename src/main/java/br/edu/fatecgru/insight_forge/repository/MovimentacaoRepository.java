@@ -10,4 +10,5 @@ public interface MovimentacaoRepository extends JpaRepository<MovimentacaoEntity
     List<MovimentacaoEntity> findByTipoMovimentacao(String tipoMovimentacao);
     List<MovimentacaoEntity> findByDataMovimentacaoBetween(LocalDate startDate, LocalDate endDate);
     List<MovimentacaoEntity> findByProdutoId(Long produtoId);
+    List<MovimentacaoEntity> findByUsuario(br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario);
 }

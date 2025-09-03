@@ -5,9 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import javax.lang.model.element.ModuleElement;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
@@ -15,6 +13,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
     List<ProdutoEntity> findByCategoria(String categoria);
     List<ProdutoEntity> findByAtivo(Boolean ativo);
     List<ProdutoEntity> findByNomeContainingIgnoreCase(String nome); // Use ContainingIgnoreCase para buscar ignorando letras maiúsculas/minúsculas.
+    List<ProdutoEntity> findByUsuario(br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario);
 
     // Retorna todas as categorias distintas cadastradas
     @Query("SELECT DISTINCT p.categoria FROM ProdutoEntity p WHERE p.categoria IS NOT NULL")

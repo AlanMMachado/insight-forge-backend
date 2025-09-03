@@ -10,7 +10,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @Entity
-@Table(name = "tb_movimentacao")
+@Table(name = "tb_movimentacoes")
 public class MovimentacaoEntity {
 
     @Id
@@ -21,6 +21,10 @@ public class MovimentacaoEntity {
     @JoinColumn(name = "produto_id", nullable = false)
     @JsonBackReference
     private ProdutoEntity produto;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private UsuarioEntity usuario;
 
     @Column(name = "quantidade_movimentada", nullable = false)
     private int quantidadeMovimentada;

@@ -27,9 +27,22 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
     private final ProdutoConverter produtoConverter;
 
-    public ProdutoEntity salvarOuAtualizarProduto(ProdutoEntity produto) {
+    // ===============================
+    // MÉTODOS RELACIONADOS AO USUÁRIO
+    // ===============================
+
+    public List<ProdutoEntity> listarProdutosPorUsuario(br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        return produtoRepository.findByUsuario(usuario);
+    }
+
+    public ProdutoEntity salvarOuAtualizarProdutoPorUsuario(ProdutoEntity produto, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        produto.setUsuario(usuario);
         return produtoRepository.save(produto);
     }
+
+    // =====================
+    // MÉTODOS GERAIS
+    // =====================
 
     public List<ProdutoEntity> listarTodosProdutos() {
         return produtoRepository.findAll();
@@ -39,66 +52,69 @@ public class ProdutoService {
         return produtoConverter.toDTOList(produtoRepository.findAll());
     }
 
-    public List<ProdutoEntity> buscarProdutosPorCategoria(String categoria) {
-        return produtoRepository.findByCategoria(categoria);
+    public ProdutoEntity salvarOuAtualizarProduto(ProdutoEntity produto) {
+        return produtoRepository.save(produto);
     }
 
     public List<ProdutoDTO> buscarProdutosPorCategoriaDTO(String categoria) {
         return produtoConverter.toDTOList(produtoRepository.findByCategoria(categoria));
     }
 
-    public List<ProdutoEntity> buscarProdutosAtivos(Boolean ativo) {
-        return produtoRepository.findByAtivo(ativo);
+    public List<ProdutoEntity> buscarProdutosPorCategoria(String categoria) {
+        return produtoRepository.findByCategoria(categoria);
     }
 
     public List<ProdutoDTO> buscarProdutosAtivosDTO(Boolean ativo) {
         return produtoConverter.toDTOList(produtoRepository.findByAtivo(ativo));
     }
 
-    public List<ProdutoEntity> buscarProdutosPorNome(String nome) {
-        return produtoRepository.findByNomeContainingIgnoreCase(nome);
+    public List<ProdutoEntity> buscarProdutosAtivos(Boolean ativo) {
+        return produtoRepository.findByAtivo(ativo);
     }
 
     public List<ProdutoDTO> buscarProdutosPorNomeDTO(String nome) {
         return produtoConverter.toDTOList(produtoRepository.findByNomeContainingIgnoreCase(nome));
     }
 
-    public Optional<ProdutoEntity> buscarProdutoPorId(Long id) {
-        return produtoRepository.findById(id);
+    public List<ProdutoEntity> buscarProdutosPorNome(String nome) {
+        return produtoRepository.findByNomeContainingIgnoreCase(nome);
     }
 
     public Optional<ProdutoDTO> buscarProdutoPorIdDTO(Long id) {
         return produtoRepository.findById(id).map(produtoConverter::toDTO);
     }
 
+    public Optional<ProdutoEntity> buscarProdutoPorId(Long id) {
+        return produtoRepository.findById(id);
+    }
+
     public List<String> listarCategorias() {
         return produtoRepository.findDistinctCategorias();
     }
 
-    // Recebe um arquivo temporário do endpoint de "importarProdutos", chama a função de importação síncrona, logo em seguida apaga o arquivo temporário
-    @Async // Roda em uma thread separada
-    @Transactional // Garante que a operação de importação seja transacional (tudo ou nada)
-    public void importarProdutosAsync(File file) {
-        try{
-            importarProdutos(file); // Chama a função síncrona de importação
+    // =====================
+    // MÉTODOS DE IMPORTAÇÃO
+    // =====================
+
+    @Async
+    @Transactional
+    public void importarProdutosAsync(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        try {
+            importarProdutos(file, usuario);
         } finally {
-            file.delete(); // Deleta o arquivo temporário após a importação
+            file.delete();
         }
     }
 
-    // Função síncrona para importar produtos de um arquivo Excel
     @Transactional
-    public void importarProdutos(File file) {
+    public void importarProdutos(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
         try (InputStream input = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(input)) {
-
             Sheet sheet = workbook.getSheetAt(0);
             int totalRows = sheet.getLastRowNum();
-
             for (int i = 1; i <= totalRows; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
-
                 ProdutoEntity produto = new ProdutoEntity();
                 produto.setNome(getCellValueAsString(row.getCell(0)));
                 produto.setPreco(getCellValueAsBigDecimal(row.getCell(1)));
@@ -106,7 +122,7 @@ public class ProdutoService {
                 produto.setDescricao(getCellValueAsString(row.getCell(3)));
                 produto.setCategoria(getCellValueAsString(row.getCell(4)));
                 produto.setQuantidadeEstoque(getCellValueAsInteger(row.getCell(5)));
-
+                produto.setUsuario(usuario); // Associar ao usuário autenticado
                 produtoRepository.save(produto);
             }
         } catch (Exception e) {
@@ -165,8 +181,10 @@ public class ProdutoService {
         }).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
     }
 
+    // =====================
+    // MÉTODOS AUXILIARES
+    // =====================
 
-    // Métodos auxiliares para obter valores de células do Excel
     private String getCellValueAsString(Cell cell) {
         if (cell == null) return "";
         return cell.getCellType() == CellType.STRING ? cell.getStringCellValue() : cell.toString();

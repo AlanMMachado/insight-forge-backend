@@ -28,26 +28,37 @@ public class MovimentacaoService {
     private final ProdutoRepository produtoRepository;
     private final MovimentacaoConverter movimentacaoConverter;
 
+    // ===============================
+    // MÉTODOS RELACIONADOS AO USUÁRIO
+    // ===============================
+
+    public List<MovimentacaoEntity> listarMovimentacoesPorUsuario(br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        return movimentacaoRepository.findByUsuario(usuario);
+    }
+
+    public MovimentacaoEntity criarMovimentacaoPorUsuario(MovimentacaoEntity movimentacao, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        movimentacao.setUsuario(usuario);
+        ProdutoEntity produto = produtoRepository.findById(movimentacao.getProduto().getId())
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+        movimentacao.setProduto(produto);
+        return movimentacaoRepository.save(movimentacao);
+    }
+
+    // =====================
+    // MÉTODOS GERAIS
+    // =====================
+
     public MovimentacaoEntity salvarOuAtualizar(MovimentacaoEntity movimentacao) {
-        // Salvar a movimentação primeiro
         MovimentacaoEntity movimentacaoSalva = movimentacaoRepository.save(movimentacao);
-
-        // Atualizar o estoque do produto baseado na movimentação
         atualizarEstoqueProduto(movimentacao);
-
         return movimentacaoSalva;
     }
 
     @Transactional
     public MovimentacaoEntity criarMovimentacao(MovimentacaoEntity movimentacao) {
-        // Validar se o produto existe e buscar o produto completo
         ProdutoEntity produto = produtoRepository.findById(movimentacao.getProduto().getId())
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
-
-        // Associar o produto completo à movimentação
         movimentacao.setProduto(produto);
-
-        // Validar estoque para vendas
         if ("VENDA".equalsIgnoreCase(movimentacao.getTipoMovimentacao())) {
             if (produto.getQuantidadeEstoque() < movimentacao.getQuantidadeMovimentada()) {
                 throw new RuntimeException("Estoque insuficiente. Estoque atual: " +
@@ -55,36 +66,17 @@ public class MovimentacaoService {
                     movimentacao.getQuantidadeMovimentada());
             }
         }
-
-        // Salvar a movimentação
         MovimentacaoEntity movimentacaoSalva = movimentacaoRepository.save(movimentacao);
-
-        // Atualizar o estoque do produto
         atualizarEstoqueProduto(movimentacaoSalva);
-
         return movimentacaoSalva;
     }
 
-    @Transactional
-    protected void atualizarEstoqueProduto(MovimentacaoEntity movimentacao) {
-        ProdutoEntity produto = movimentacao.getProduto();
-        int quantidadeMovimentada = movimentacao.getQuantidadeMovimentada();
-        String tipoMovimentacao = movimentacao.getTipoMovimentacao();
-
-        if ("COMPRA".equalsIgnoreCase(tipoMovimentacao)) {
-            // Aumentar estoque para compras
-            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() + quantidadeMovimentada);
-        } else if ("VENDA".equalsIgnoreCase(tipoMovimentacao)) {
-            // Diminuir estoque para vendas
-            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - quantidadeMovimentada);
-        }
-
-        // Salvar o produto com o estoque atualizado
-        produtoRepository.save(produto);
+    public List<MovimentacaoEntity> listarTodasMovimentacoes() {
+        return movimentacaoRepository.findAll();
     }
 
-    public List<MovimentacaoEntity> listarTodas() {
-        return movimentacaoRepository.findAll();
+    public List<MovimentacaoDTO> listarTodasMovimentacoesDTO() {
+        return movimentacaoConverter.toDTOList(movimentacaoRepository.findAll());
     }
 
     public Optional<MovimentacaoEntity> buscarPorMovimentacaoId(Long id) {
@@ -109,92 +101,54 @@ public class MovimentacaoService {
 
     public MovimentacaoEntity atualizar(Long id, MovimentacaoEntity dadosAtualizados) {
         return movimentacaoRepository.findById(id).map(movimentacao -> {
-            // Buscar o produto completo pelo id
             ProdutoEntity produtoCompleto = produtoRepository.findById(dadosAtualizados.getProduto().getId())
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + dadosAtualizados.getProduto().getId()));
-
-            // Salvar valores antigos para ajuste de estoque
             ProdutoEntity produtoAntigo = movimentacao.getProduto();
             int quantidadeAntiga = movimentacao.getQuantidadeMovimentada();
             String tipoAntigo = movimentacao.getTipoMovimentacao();
-
-            // Atualizar os dados da movimentação
             movimentacao.setProduto(produtoCompleto);
             movimentacao.setQuantidadeMovimentada(dadosAtualizados.getQuantidadeMovimentada());
             movimentacao.setDataMovimentacao(dadosAtualizados.getDataMovimentacao());
             movimentacao.setTipoMovimentacao(dadosAtualizados.getTipoMovimentacao());
-
             MovimentacaoEntity movimentacaoAtualizada = movimentacaoRepository.save(movimentacao);
-
             try {
-                // Ajustar estoque do produto antigo (caso o produto tenha mudado)
                 if (!produtoAntigo.getId().equals(produtoCompleto.getId())) {
-                    // Reverter estoque do produto antigo
                     ajustarEstoqueAoRemoverMovimentacao(produtoAntigo, quantidadeAntiga, tipoAntigo);
-                    // Aplicar estoque do novo produto
                     atualizarEstoqueProduto(movimentacaoAtualizada);
                 } else {
-                    // Produto não mudou, ajustar diferença de quantidade/tipo
                     ajustarEstoqueAoAtualizarMovimentacao(produtoAntigo, quantidadeAntiga, tipoAntigo, movimentacaoAtualizada);
                 }
             } catch (Exception e) {
-                // Logar erro para diagnóstico
                 System.err.println("Erro ao ajustar estoque na atualização de movimentação: " + e.getMessage());
                 e.printStackTrace();
                 throw new RuntimeException("Erro ao ajustar estoque: " + e.getMessage());
             }
-
             return movimentacaoAtualizada;
         }).orElseThrow(() -> new RuntimeException("Movimentação não encontrada com ID: " + id));
     }
 
-    // Novo método auxiliar para ajustar estoque ao atualizar movimentação
-    private void ajustarEstoqueAoAtualizarMovimentacao(ProdutoEntity produto, int quantidadeAntiga, String tipoAntigo, MovimentacaoEntity movimentacaoAtualizada) {
-        int quantidadeNova = movimentacaoAtualizada.getQuantidadeMovimentada();
-        String tipoNovo = movimentacaoAtualizada.getTipoMovimentacao();
-
-        // Reverter estoque da movimentação antiga
-        ajustarEstoqueAoRemoverMovimentacao(produto, quantidadeAntiga, tipoAntigo);
-        // Aplicar estoque da movimentação nova
-        atualizarEstoqueProduto(movimentacaoAtualizada);
-    }
-
-    // Novo método auxiliar para reverter estoque ao remover movimentação
-    private void ajustarEstoqueAoRemoverMovimentacao(ProdutoEntity produto, int quantidade, String tipoMovimentacao) {
-        if ("COMPRA".equalsIgnoreCase(tipoMovimentacao)) {
-            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - quantidade);
-        } else if ("VENDA".equalsIgnoreCase(tipoMovimentacao)) {
-            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() + quantidade);
-        }
-        produtoRepository.save(produto);
-    }
-
     @Async // Roda em uma thread separada
     @Transactional // Garante que a operação de importação seja transacional (tudo ou nada)
-    public void importarMovimentacoesAsync(File file) {
+    public void importarMovimentacoesAsync(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
         try {
-            importarMovimentacoes(file);
+            importarMovimentacoes(file, usuario);
         } finally {
             file.delete();
         }
     }
 
     @Transactional
-    public ResultadoImportacaoMovimentacaoDTO importarMovimentacoes(File file) {
+    public ResultadoImportacaoMovimentacaoDTO importarMovimentacoes(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
         List<ResultadoImportacaoMovimentacaoDTO.ProdutoNaoEncontradoDTO> produtosNaoEncontrados = new ArrayList<>();
         int movimentacoesImportadas = 0;
         int movimentacoesIgnoradas = 0;
-
         try (InputStream input = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(input)) {
-
             Sheet sheet = workbook.getSheetAt(0);
             int totalRows = sheet.getLastRowNum();
-
             for (int i = 1; i <= totalRows; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
-
                 String nomeProduto = getCellValueAsString(row.getCell(0));
                 int quantidadeMovimentada = getCellValueAsInteger(row.getCell(1));
                 LocalDate dataMovimentacao = getCellValueAsDate(row.getCell(2));
@@ -203,7 +157,6 @@ public class MovimentacaoService {
                     throw new RuntimeException("Data de movimentação inválida ou ausente na linha " + (i + 1) + ". Valor encontrado: " + cellValue);
                 }
                 String tipoMovimentacao = getCellValueAsString(row.getCell(3));
-
                 List<ProdutoEntity> produtos = produtoRepository.findByNomeContainingIgnoreCase(nomeProduto);
                 if (produtos.isEmpty()) {
                     produtosNaoEncontrados.add(new ResultadoImportacaoMovimentacaoDTO.ProdutoNaoEncontradoDTO(
@@ -212,33 +165,28 @@ public class MovimentacaoService {
                     movimentacoesIgnoradas++;
                     continue;
                 }
-
                 ProdutoEntity produto = produtos.get(0);
                 MovimentacaoEntity movimentacao = new MovimentacaoEntity();
                 movimentacao.setProduto(produto);
                 movimentacao.setQuantidadeMovimentada(quantidadeMovimentada);
                 movimentacao.setDataMovimentacao(dataMovimentacao);
                 movimentacao.setTipoMovimentacao(tipoMovimentacao);
-
-                // Usar o método criarMovimentacao para aplicar controle de estoque
+                movimentacao.setUsuario(usuario); // Associar ao usuário autenticado
                 criarMovimentacao(movimentacao);
                 movimentacoesImportadas++;
             }
         } catch (Exception e) {
             throw new RuntimeException("Erro ao importar movimentações: " + e.getMessage(), e);
         }
-
         ResultadoImportacaoMovimentacaoDTO resultado = new ResultadoImportacaoMovimentacaoDTO();
         resultado.setMovimentacoesImportadas(movimentacoesImportadas);
         resultado.setMovimentacoesIgnoradas(movimentacoesIgnoradas);
         resultado.setProdutosNaoEncontrados(produtosNaoEncontrados);
-
         if (produtosNaoEncontrados.isEmpty()) {
             resultado.setMensagem("Todas as movimentações foram importadas com sucesso!");
         } else {
             resultado.setMensagem("Importação concluída com algumas movimentações ignoradas devido a produtos não encontrados.");
         }
-
         return resultado;
     }
 
@@ -268,17 +216,52 @@ public class MovimentacaoService {
         return gerarExcelMovimentacoes(movimentacoes);
     }
 
+    public MovimentacaoDTO toDTO(MovimentacaoEntity entity) {
+        return movimentacaoConverter.toDTO(entity);
+    }
+
+    // =====================
+    // MÉTODOS AUXILIARES
+    // =====================
+
+    @Transactional
+    protected void atualizarEstoqueProduto(MovimentacaoEntity movimentacao) {
+        ProdutoEntity produto = movimentacao.getProduto();
+        int quantidadeMovimentada = movimentacao.getQuantidadeMovimentada();
+        String tipoMovimentacao = movimentacao.getTipoMovimentacao();
+        if ("COMPRA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() + quantidadeMovimentada);
+        } else if ("VENDA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - quantidadeMovimentada);
+        }
+        produtoRepository.save(produto);
+    }
+
+    private void ajustarEstoqueAoAtualizarMovimentacao(ProdutoEntity produto, int quantidadeAntiga, String tipoAntigo, MovimentacaoEntity movimentacaoAtualizada) {
+        int quantidadeNova = movimentacaoAtualizada.getQuantidadeMovimentada();
+        String tipoNovo = movimentacaoAtualizada.getTipoMovimentacao();
+        ajustarEstoqueAoRemoverMovimentacao(produto, quantidadeAntiga, tipoAntigo);
+        atualizarEstoqueProduto(movimentacaoAtualizada);
+    }
+
+    private void ajustarEstoqueAoRemoverMovimentacao(ProdutoEntity produto, int quantidade, String tipoMovimentacao) {
+        if ("COMPRA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - quantidade);
+        } else if ("VENDA".equalsIgnoreCase(tipoMovimentacao)) {
+            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() + quantidade);
+        }
+        produtoRepository.save(produto);
+    }
+
     private byte[] gerarExcelMovimentacoes(List<MovimentacaoEntity> movimentacoes) throws IOException {
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-
             Sheet sheet = workbook.createSheet("Movimentacoes");
             String[] headers = {"ID", "Produto", "Categoria", "Quantidade", "Data", "Tipo"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
             }
-
             int rowNum = 1;
             for (MovimentacaoEntity m : movimentacoes) {
                 Row row = sheet.createRow(rowNum++);
@@ -289,7 +272,6 @@ public class MovimentacaoService {
                 row.createCell(4).setCellValue(m.getDataMovimentacao().toString());
                 row.createCell(5).setCellValue(m.getTipoMovimentacao());
             }
-
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
             }
@@ -298,15 +280,6 @@ public class MovimentacaoService {
         }
     }
 
-    public List<MovimentacaoDTO> listarTodasDTO() {
-        return movimentacaoConverter.toDTOList(movimentacaoRepository.findAll());
-    }
-
-    public MovimentacaoDTO toDTO(MovimentacaoEntity entity) {
-        return movimentacaoConverter.toDTO(entity);
-    }
-
-    // Métodos auxiliares para obter valores de células
     private String getCellValueAsString(Cell cell) {
         if (cell == null) return "";
         return cell.getCellType() == CellType.STRING ? cell.getStringCellValue() : cell.toString();
@@ -334,10 +307,11 @@ public class MovimentacaoService {
             try {
                 return LocalDate.parse(cell.getStringCellValue());
             } catch (Exception e) {
-                return null; // Retorna nulo se o formato não for válido
+                return null;
             }
         }
         return null;
     }
+
 
 }

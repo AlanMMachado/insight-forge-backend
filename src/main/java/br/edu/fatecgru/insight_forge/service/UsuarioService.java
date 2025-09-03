@@ -5,7 +5,6 @@ import br.edu.fatecgru.insight_forge.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -69,7 +68,7 @@ public class UsuarioService {
         return false;
     }
 
-    @PostConstruct
+    // Removido @PostConstruct do método de inicialização
     public void inicializarAdministradorPadrao() {
         logger.info("Inicializando administrador padrão...");
         if (usuarioRepository.findByEmail("admin@insight.com").isEmpty()) {

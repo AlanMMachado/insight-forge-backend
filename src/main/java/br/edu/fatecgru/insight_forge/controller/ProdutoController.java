@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import br.edu.fatecgru.insight_forge.service.UsuarioService;
 
 import java.io.File;
 import java.util.List;
@@ -19,16 +22,24 @@ public class ProdutoController {
 
     private final ProdutoService produtoService;
     private final ProdutoConverter produtoConverter;
+    private final UsuarioService usuarioService;
 
-    public ProdutoController(ProdutoService produtoService, ProdutoConverter produtoConverter) {
+    public ProdutoController(ProdutoService produtoService, ProdutoConverter produtoConverter, UsuarioService usuarioService) {
         this.produtoService = produtoService;
         this.produtoConverter = produtoConverter;
+        this.usuarioService = usuarioService;
     }
 
     @PostMapping("/criarProduto")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<ProdutoDTO> criarProduto(@RequestBody ProdutoEntity produto) {
-        ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProduto(produto);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProdutoPorUsuario(produto, usuarioOpt.get());
         ProdutoDTO dto = produtoConverter.toDTO(novoProduto);
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
@@ -36,8 +47,15 @@ public class ProdutoController {
     @GetMapping("/listarProdutos")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<List<ProdutoDTO>> listarProdutos() {
-        List<ProdutoDTO> produtos = produtoService.listarTodosProdutosDTO();
-        return ResponseEntity.ok(produtos);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        List<ProdutoEntity> produtos = produtoService.listarProdutosPorUsuario(usuarioOpt.get());
+        List<ProdutoDTO> produtosDTO = produtoConverter.toDTOList(produtos);
+        return ResponseEntity.ok(produtosDTO);
     }
 
     @GetMapping("/listarCategorias")
@@ -91,10 +109,16 @@ public class ProdutoController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, selecione um arquivo para importar.");
         }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário não autenticado.");
+        }
         try {
             File tempFile = File.createTempFile("produtos", ".xlsx");
             file.transferTo(tempFile);
-            produtoService.importarProdutosAsync(tempFile);
+            produtoService.importarProdutosAsync(tempFile, usuarioOpt.get());
             return ResponseEntity.ok("Produtos importados com sucesso.");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao importar produtos: " + e.getMessage());

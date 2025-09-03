@@ -14,34 +14,48 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import br.edu.fatecgru.insight_forge.service.UsuarioService;
 
 @RestController
 @RequestMapping("/api/movimentacoes")
 public class MovimentacaoController {
 
     private final MovimentacaoService movimentacaoService;
+    private final UsuarioService usuarioService;
 
-    public MovimentacaoController(MovimentacaoService movimentacaoService) {
+    public MovimentacaoController(MovimentacaoService movimentacaoService, UsuarioService usuarioService) {
         this.movimentacaoService = movimentacaoService;
+        this.usuarioService = usuarioService;
     }
 
     @PostMapping("/criarMovimentacao")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<?> criarMovimentacao(@RequestBody MovimentacaoEntity movimentacao) {
-        try {
-            MovimentacaoEntity nova = movimentacaoService.criarMovimentacao(movimentacao);
-            MovimentacaoDTO dto = movimentacaoService.toDTO(nova);
-            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        MovimentacaoEntity nova = movimentacaoService.criarMovimentacaoPorUsuario(movimentacao, usuarioOpt.get());
+        MovimentacaoDTO dto = movimentacaoService.toDTO(nova);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
     @GetMapping("/listarMovimentacoes")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public ResponseEntity<List<MovimentacaoDTO>> listarMovimentacoes() {
-        List<MovimentacaoDTO> lista = movimentacaoService.listarTodasDTO();
-        return ResponseEntity.ok(lista);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        List<MovimentacaoEntity> lista = movimentacaoService.listarMovimentacoesPorUsuario(usuarioOpt.get());
+        List<MovimentacaoDTO> listaDTO = lista.stream().map(movimentacaoService::toDTO).toList();
+        return ResponseEntity.ok(listaDTO);
     }
 
     @GetMapping("/buscarPorId/{id}")
@@ -109,13 +123,17 @@ public class MovimentacaoController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, selecione um arquivo para importar.");
         }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        var usuarioOpt = usuarioService.findByEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário não autenticado.");
+        }
         try {
             File tempFile = File.createTempFile("movimentacoes", ".xlsx");
             file.transferTo(tempFile);
-
-            ResultadoImportacaoMovimentacaoDTO resultado = movimentacaoService.importarMovimentacoes(tempFile);
-            tempFile.delete(); // Deletar o arquivo temporário
-
+            ResultadoImportacaoMovimentacaoDTO resultado = movimentacaoService.importarMovimentacoes(tempFile, usuarioOpt.get());
+            tempFile.delete();
             return ResponseEntity.ok(resultado);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao importar movimentações: " + e.getMessage());
