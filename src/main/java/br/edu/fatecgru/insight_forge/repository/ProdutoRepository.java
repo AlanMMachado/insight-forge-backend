@@ -14,6 +14,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
     List<ProdutoEntity> findByAtivo(Boolean ativo);
     List<ProdutoEntity> findByNomeContainingIgnoreCase(String nome); // Use ContainingIgnoreCase para buscar ignorando letras maiúsculas/minúsculas.
     List<ProdutoEntity> findByUsuario(br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario);
+    List<ProdutoEntity> findByNomeAndUsuario(String nome, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario);
 
     // Retorna todas as categorias distintas cadastradas
     @Query("SELECT DISTINCT p.categoria FROM ProdutoEntity p WHERE p.categoria IS NOT NULL")

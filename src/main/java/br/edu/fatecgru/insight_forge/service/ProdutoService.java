@@ -96,18 +96,9 @@ public class ProdutoService {
     // MÉTODOS DE IMPORTAÇÃO
     // =====================
 
-    @Async
     @Transactional
-    public void importarProdutosAsync(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
-        try {
-            importarProdutos(file, usuario);
-        } finally {
-            file.delete();
-        }
-    }
-
-    @Transactional
-    public void importarProdutos(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+    public List<String> importarProdutos(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        List<String> produtosIgnorados = new java.util.ArrayList<>();
         try (InputStream input = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(input)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -122,11 +113,28 @@ public class ProdutoService {
                 produto.setDescricao(getCellValueAsString(row.getCell(3)));
                 produto.setCategoria(getCellValueAsString(row.getCell(4)));
                 produto.setQuantidadeEstoque(getCellValueAsInteger(row.getCell(5)));
-                produto.setUsuario(usuario); // Associar ao usuário autenticado
+                produto.setUsuario(usuario);
+                // Validação de duplicidade por nome + usuário
+                List<ProdutoEntity> existentes = produtoRepository.findByNomeAndUsuario(produto.getNome(), usuario);
+                if (!existentes.isEmpty()) {
+                    produtosIgnorados.add(produto.getNome());
+                    continue;
+                }
                 produtoRepository.save(produto);
             }
         } catch (Exception e) {
             throw new RuntimeException("Erro ao importar produtos: " + e.getMessage(), e);
+        }
+        return produtosIgnorados;
+    }
+
+    @Async
+    @Transactional
+    public List<String> importarProdutosAsync(File file, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
+        try {
+            return importarProdutos(file, usuario);
+        } finally {
+            file.delete();
         }
     }
 

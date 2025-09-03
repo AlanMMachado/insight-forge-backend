@@ -38,10 +38,7 @@ public class MovimentacaoService {
 
     public MovimentacaoEntity criarMovimentacaoPorUsuario(MovimentacaoEntity movimentacao, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
         movimentacao.setUsuario(usuario);
-        ProdutoEntity produto = produtoRepository.findById(movimentacao.getProduto().getId())
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
-        movimentacao.setProduto(produto);
-        return movimentacaoRepository.save(movimentacao);
+        return criarMovimentacao(movimentacao);
     }
 
     // =====================
