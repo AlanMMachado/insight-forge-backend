@@ -51,23 +51,6 @@ public class ProdutoService {
         return produtoRepository.findByUsuario(usuario);
     }
 
-    public ProdutoEntity salvarOuAtualizarProdutoPorUsuario(ProdutoEntity produto, br.edu.fatecgru.insight_forge.model.UsuarioEntity usuario) {
-        produto.setUsuario(usuario);
-        return produtoRepository.save(produto);
-    }
-
-    // =====================
-    // MÉTODOS GERAIS
-    // =====================
-
-    public List<ProdutoEntity> listarTodosProdutos() {
-        return produtoRepository.findAll();
-    }
-
-    public List<ProdutoDTO> listarTodosProdutosDTO() {
-        return produtoConverter.toDTOList(produtoRepository.findAll());
-    }
-
     public ProdutoEntity salvarOuAtualizarProduto(ProdutoEntity produto) {
         return produtoRepository.save(produto);
     }
@@ -76,24 +59,12 @@ public class ProdutoService {
         return produtoConverter.toDTOList(produtoRepository.findByCategoria(categoria));
     }
 
-    public List<ProdutoEntity> buscarProdutosPorCategoria(String categoria) {
-        return produtoRepository.findByCategoria(categoria);
-    }
-
     public List<ProdutoDTO> buscarProdutosAtivosDTO(Boolean ativo) {
         return produtoConverter.toDTOList(produtoRepository.findByAtivo(ativo));
     }
 
-    public List<ProdutoEntity> buscarProdutosAtivos(Boolean ativo) {
-        return produtoRepository.findByAtivo(ativo);
-    }
-
     public List<ProdutoDTO> buscarProdutosPorNomeDTO(String nome) {
         return produtoConverter.toDTOList(produtoRepository.findByNomeContainingIgnoreCase(nome));
-    }
-
-    public List<ProdutoEntity> buscarProdutosPorNome(String nome) {
-        return produtoRepository.findByNomeContainingIgnoreCase(nome);
     }
 
     public Optional<ProdutoDTO> buscarProdutoPorIdDTO(Long id) {
@@ -202,21 +173,6 @@ public class ProdutoService {
         logger.info("Produto deletado: {}", id);
     }
 
-    public ProdutoEntity atualizarProduto(Long id, ProdutoEntity produtoAtualizado) {
-        return produtoRepository.findById(id).map(produto -> {
-            produto.setNome(produtoAtualizado.getNome());
-            produto.setDescricao(produtoAtualizado.getDescricao());
-            produto.setCategoria(produtoAtualizado.getCategoria());
-            produto.setPreco(produtoAtualizado.getPreco());
-            produto.setCusto(produtoAtualizado.getCusto());
-            produto.setQuantidadeEstoque(produtoAtualizado.getQuantidadeEstoque());
-            produto.setFornecedor(produtoAtualizado.getFornecedor());
-            produto.setAtivo(produtoAtualizado.getAtivo());
-            produto.setFotoUrl(produtoAtualizado.getFotoUrl());
-            return produtoRepository.save(produto);
-        }).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
-    }
-
     @Transactional
     public ProdutoEntity atualizarProdutoComFoto(Long id, ProdutoEntity produtoAtualizado, MultipartFile file, boolean removerFoto) throws IOException {
         ProdutoEntity produto = produtoRepository.findById(id)
@@ -302,6 +258,11 @@ public class ProdutoService {
             return false;
         }
         
+        // Verificar tamanho do arquivo (máx 5MB)
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return false;
+        }
+        
         // Verificar MIME type
         String contentType = file.getContentType();
         if (contentType == null) {
@@ -321,7 +282,6 @@ public class ProdutoService {
             return false;
         }
         
-        // Verificar assinatura do arquivo (bytes iniciais)
         try (InputStream is = file.getInputStream()) {
             byte[] header = new byte[4];
             if (is.read(header) < 2) {
@@ -348,12 +308,14 @@ public class ProdutoService {
     }
     
     private String generateFileName(Long produtoId, String originalFilename) {
-        // Sanitizar nome original
         String extension = ".jpg";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            String originalExt = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
-            if (originalExt.equals(".png") || originalExt.equals(".jpg") || originalExt.equals(".jpeg")) {
-                extension = originalExt.equals(".jpeg") ? ".jpg" : originalExt;
+        if (originalFilename != null) {
+            String safeFilename = Paths.get(originalFilename).getFileName().toString();
+            if (safeFilename.contains(".")) {
+                String originalExt = safeFilename.substring(safeFilename.lastIndexOf(".")).toLowerCase();
+                if (originalExt.equals(".png") || originalExt.equals(".jpg") || originalExt.equals(".jpeg")) {
+                    extension = originalExt.equals(".jpeg") ? ".jpg" : originalExt;
+                }
             }
         }
         

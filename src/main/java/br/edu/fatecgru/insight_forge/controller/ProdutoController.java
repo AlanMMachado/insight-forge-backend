@@ -3,6 +3,7 @@ package br.edu.fatecgru.insight_forge.controller;
 import br.edu.fatecgru.insight_forge.converter.ProdutoConverter;
 import br.edu.fatecgru.insight_forge.dto.ProdutoCreateDTO;
 import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
+import br.edu.fatecgru.insight_forge.dto.ProdutoUpdateDTO;
 import br.edu.fatecgru.insight_forge.dto.ErrorResponseDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.service.ProdutoService;
@@ -14,6 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import br.edu.fatecgru.insight_forge.service.UsuarioService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.List;
@@ -21,6 +24,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/produtos")
 public class ProdutoController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ProdutoController.class);
 
     private final ProdutoService produtoService;
     private final ProdutoConverter produtoConverter;
@@ -43,10 +48,6 @@ public class ProdutoController {
         }
         ProdutoEntity produto = produtoConverter.toEntityFromCreate(produtoCreate);
         produto.setUsuario(usuarioOpt.get());
-        if (produtoCreate.getFornecedorId() != null) {
-            // Assumir que há um método para buscar fornecedor
-            // produto.setFornecedor(fornecedorService.buscarPorId(produtoCreate.getFornecedorId()));
-        }
         ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProduto(produto);
         if (file != null && !file.isEmpty()) {
             try {
@@ -55,10 +56,10 @@ public class ProdutoController {
             } catch (RuntimeException e) {
                 // Se foto falhar por validação, deletar produto criado e retornar erro
                 produtoService.deletarProdutoPorId(novoProduto.getId());
-                return ResponseEntity.badRequest().body(e.getMessage());
+                return ResponseEntity.badRequest().body(new ErrorResponseDTO(e.getMessage(), "Bad Request", 400));
             } catch (Exception e) {
                 // Se foto falhar por outro motivo, produto ainda é criado
-                System.err.println("Erro ao salvar foto na criação: " + e.getMessage());
+                logger.error("Erro ao salvar foto na criação: {}", e.getMessage());
             }
         }
         ProdutoDTO dto = produtoConverter.toDTO(novoProduto);
@@ -161,18 +162,19 @@ public class ProdutoController {
 
     @PutMapping("/atualizarProduto/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<?> atualizarProduto(@PathVariable Long id, @RequestPart("produto") ProdutoEntity produtoAtualizado, @RequestPart(value = "file", required = false) MultipartFile file, @RequestParam(value = "removerFoto", defaultValue = "false") boolean removerFoto) {
+    public ResponseEntity<?> atualizarProduto(@PathVariable Long id, @RequestPart("produto") ProdutoUpdateDTO produtoUpdate, @RequestPart(value = "file", required = false) MultipartFile file, @RequestParam(value = "removerFoto", defaultValue = "false") boolean removerFoto) {
         try {
+            ProdutoEntity produtoAtualizado = produtoConverter.toEntityFromUpdate(produtoUpdate);
             ProdutoEntity atualizado = produtoService.atualizarProdutoComFoto(id, produtoAtualizado, file, removerFoto);
             ProdutoDTO dto = produtoConverter.toDTO(atualizado);
             return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
             if (e.getMessage().contains("imagem válida") || e.getMessage().contains("Arquivo deve ser")) {
-                return ResponseEntity.badRequest().body(e.getMessage());
+                return ResponseEntity.badRequest().body(new ErrorResponseDTO(e.getMessage(), "Bad Request", 400));
             }
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Produto não encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO("Produto não encontrado", "Not Found", 404));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro interno: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponseDTO("Erro interno: " + e.getMessage(), "Internal Server Error", 500));
         }
     }
 

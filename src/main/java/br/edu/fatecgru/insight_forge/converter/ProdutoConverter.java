@@ -2,6 +2,7 @@ package br.edu.fatecgru.insight_forge.converter;
 
 import br.edu.fatecgru.insight_forge.dto.ProdutoCreateDTO;
 import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
+import br.edu.fatecgru.insight_forge.dto.ProdutoUpdateDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import org.springframework.stereotype.Component;
 
@@ -61,7 +62,20 @@ public class ProdutoConverter {
         entity.setDescricao(dto.getDescricao());
         entity.setQuantidadeEstoque(dto.getQuantidadeEstoque());
         entity.setAtivo(dto.getAtivo());
-        // fornecedorId pode ser setado depois
+        return entity;
+    }
+
+    public ProdutoEntity toEntityFromUpdate(ProdutoUpdateDTO dto) {
+        if (dto == null) return null;
+
+        ProdutoEntity entity = new ProdutoEntity();
+        entity.setNome(dto.getNome());
+        entity.setPreco(dto.getPreco());
+        entity.setCusto(dto.getCusto());
+        entity.setCategoria(dto.getCategoria());
+        entity.setDescricao(dto.getDescricao());
+        entity.setQuantidadeEstoque(dto.getQuantidadeEstoque());
+        entity.setAtivo(dto.getAtivo());
         return entity;
     }
 }

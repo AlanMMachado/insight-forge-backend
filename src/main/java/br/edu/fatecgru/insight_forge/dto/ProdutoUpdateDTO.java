@@ -11,12 +11,12 @@ import java.math.BigDecimal;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ProdutoCreateDTO {
+public class ProdutoUpdateDTO {
     private String nome;
     private BigDecimal preco;
     private BigDecimal custo;
     private String categoria;
     private String descricao;
     private int quantidadeEstoque;
-    private Boolean ativo = true;
+    private Boolean ativo;
 }
