@@ -15,17 +15,33 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 @Service
 @RequiredArgsConstructor
 public class ProdutoService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ProdutoService.class);
+    
     private final ProdutoRepository produtoRepository;
     private final ProdutoConverter produtoConverter;
+
+    @Value("${app.upload.dir}")
+    private String uploadDir;
+
+    @Value("${app.upload.allowed-types}")
+    private String allowedTypes;
 
     // ===============================
     // MÉTODOS RELACIONADOS AO USUÁRIO
@@ -172,7 +188,18 @@ public class ProdutoService {
     }
 
     public void deletarProdutoPorId(Long id) {
+        ProdutoEntity produto = buscarProdutoPorId(id).orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+        if (produto.getFotoUrl() != null) {
+            try {
+                Path filePath = Paths.get(uploadDir + produto.getFotoUrl().replace("/uploads/", ""));
+                Files.deleteIfExists(filePath);
+                logger.info("Foto deletada para produto {}: {}", id, produto.getFotoUrl());
+            } catch (IOException e) {
+                logger.error("Erro ao deletar foto do produto {}: {}", id, e.getMessage());
+            }
+        }
         produtoRepository.deleteById(id);
+        logger.info("Produto deletado: {}", id);
     }
 
     public ProdutoEntity atualizarProduto(Long id, ProdutoEntity produtoAtualizado) {
@@ -185,13 +212,153 @@ public class ProdutoService {
             produto.setQuantidadeEstoque(produtoAtualizado.getQuantidadeEstoque());
             produto.setFornecedor(produtoAtualizado.getFornecedor());
             produto.setAtivo(produtoAtualizado.getAtivo());
+            produto.setFotoUrl(produtoAtualizado.getFotoUrl());
             return produtoRepository.save(produto);
         }).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
+    }
+
+    @Transactional
+    public ProdutoEntity atualizarProdutoComFoto(Long id, ProdutoEntity produtoAtualizado, MultipartFile file, boolean removerFoto) throws IOException {
+        ProdutoEntity produto = produtoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
+
+        // Atualizar campos normais
+        produto.setNome(produtoAtualizado.getNome());
+        produto.setDescricao(produtoAtualizado.getDescricao());
+        produto.setCategoria(produtoAtualizado.getCategoria());
+        produto.setPreco(produtoAtualizado.getPreco());
+        produto.setCusto(produtoAtualizado.getCusto());
+        produto.setQuantidadeEstoque(produtoAtualizado.getQuantidadeEstoque());
+        produto.setFornecedor(produtoAtualizado.getFornecedor());
+        produto.setAtivo(produtoAtualizado.getAtivo());
+
+        // Lidar com foto
+        if (removerFoto) {
+            // Remover foto atual
+            if (produto.getFotoUrl() != null) {
+                Path filePath = Paths.get(uploadDir + produto.getFotoUrl().replace("/uploads/", ""));
+                Files.deleteIfExists(filePath);
+                logger.info("Foto removida para produto {}: {}", id, produto.getFotoUrl());
+            }
+            produto.setFotoUrl(null);
+        } else if (file != null && !file.isEmpty()) {
+            // Validar arquivo
+            if (!isValidImageFile(file)) {
+                throw new RuntimeException("Arquivo deve ser uma imagem válida (JPEG ou PNG)");
+            }
+            
+            // Salvar nova foto, deletar antiga se existir
+            if (produto.getFotoUrl() != null) {
+                Path oldFilePath = Paths.get(uploadDir + produto.getFotoUrl().replace("/uploads/", ""));
+                Files.deleteIfExists(oldFilePath);
+                logger.info("Foto antiga removida para produto {}: {}", id, produto.getFotoUrl());
+            }
+            
+            // Salvar nova
+            String fileName = generateFileName(id, file.getOriginalFilename());
+            Path uploadPath = Paths.get(uploadDir);
+            Files.createDirectories(uploadPath);
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            produto.setFotoUrl("/uploads/" + fileName);
+            logger.info("Nova foto salva para produto {}: {}", id, fileName);
+        }
+        // Se não remover e não enviar file, mantém foto atual
+
+        return produtoRepository.save(produto);
+    }
+
+    @Transactional
+    public ProdutoEntity salvarComFoto(Long id, MultipartFile file) throws IOException {
+        ProdutoEntity produto = buscarProdutoPorId(id)
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
+        if (file != null && !file.isEmpty()) {
+            // Validações
+            if (!isValidImageFile(file)) {
+                throw new RuntimeException("Arquivo deve ser uma imagem válida (JPEG ou PNG)");
+            }
+            
+            // Salvar arquivo
+            String fileName = generateFileName(id, file.getOriginalFilename());
+            Path uploadPath = Paths.get(uploadDir);
+            Files.createDirectories(uploadPath);
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            // Atualizar produto
+            produto.setFotoUrl("/uploads/" + fileName);
+            logger.info("Foto salva para produto {}: {}", id, fileName);
+            return produtoRepository.save(produto);
+        }
+        return produto;
     }
 
     // =====================
     // MÉTODOS AUXILIARES
     // =====================
+
+    private boolean isValidImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return false;
+        }
+        
+        // Verificar MIME type
+        String contentType = file.getContentType();
+        if (contentType == null) {
+            return false;
+        }
+        
+        String[] allowedTypesArray = allowedTypes.split(",");
+        boolean validMimeType = false;
+        for (String type : allowedTypesArray) {
+            if (contentType.equals(type.trim())) {
+                validMimeType = true;
+                break;
+            }
+        }
+        
+        if (!validMimeType) {
+            return false;
+        }
+        
+        // Verificar assinatura do arquivo (bytes iniciais)
+        try (InputStream is = file.getInputStream()) {
+            byte[] header = new byte[4];
+            if (is.read(header) < 2) {
+                return false;
+            }
+            
+            // JPEG: FF D8
+            if (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) {
+                return true;
+            }
+            
+            // PNG: 89 50 4E 47
+            if (header[0] == (byte) 0x89 && header[1] == (byte) 0x50 && 
+                header[2] == (byte) 0x4E && header[3] == (byte) 0x47) {
+                return true;
+            }
+            
+        } catch (IOException e) {
+            logger.error("Erro ao verificar assinatura do arquivo: {}", e.getMessage());
+            return false;
+        }
+        
+        return false;
+    }
+    
+    private String generateFileName(Long produtoId, String originalFilename) {
+        // Sanitizar nome original
+        String extension = ".jpg";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            String originalExt = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+            if (originalExt.equals(".png") || originalExt.equals(".jpg") || originalExt.equals(".jpeg")) {
+                extension = originalExt.equals(".jpeg") ? ".jpg" : originalExt;
+            }
+        }
+        
+        return "produto_" + produtoId + "_" + System.currentTimeMillis() + extension;
+    }
 
     private String getCellValueAsString(Cell cell) {
         if (cell == null) return "";

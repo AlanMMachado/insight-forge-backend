@@ -93,6 +93,9 @@ public class MovimentacaoService {
     }
 
     public void deletarPorId(Long id) {
+        MovimentacaoEntity movimentacao = movimentacaoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Movimentação não encontrada com ID: " + id));
+        ajustarEstoqueAoRemoverMovimentacao(movimentacao.getProduto(), movimentacao.getQuantidadeMovimentada(), movimentacao.getTipoMovimentacao());
         movimentacaoRepository.deleteById(id);
     }
 

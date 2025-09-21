@@ -62,6 +62,7 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults()) // Habilita CORS usando o bean do WebConfig
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/produtos/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers("/api/fornecedores/**").hasAnyRole("ADMIN", "USER")
                 .requestMatchers("/api/movimentacoes/**").hasAnyRole("ADMIN", "USER")

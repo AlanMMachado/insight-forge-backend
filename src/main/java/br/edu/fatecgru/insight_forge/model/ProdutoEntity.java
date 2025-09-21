@@ -38,6 +38,9 @@ public class ProdutoEntity {
     @Column(nullable = false)
     private Boolean ativo = true;
 
+    @Column(name = "foto_url")
+    private String fotoUrl;
+
     @ManyToOne
     @JoinColumn(name = "fornecedor_id")
     private FornecedorEntity fornecedor;

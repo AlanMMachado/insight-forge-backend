@@ -1,7 +1,9 @@
 package br.edu.fatecgru.insight_forge.controller;
 
 import br.edu.fatecgru.insight_forge.converter.ProdutoConverter;
+import br.edu.fatecgru.insight_forge.dto.ProdutoCreateDTO;
 import br.edu.fatecgru.insight_forge.dto.ProdutoDTO;
+import br.edu.fatecgru.insight_forge.dto.ErrorResponseDTO;
 import br.edu.fatecgru.insight_forge.model.ProdutoEntity;
 import br.edu.fatecgru.insight_forge.service.ProdutoService;
 import org.springframework.http.HttpStatus;
@@ -32,14 +34,33 @@ public class ProdutoController {
 
     @PostMapping("/criarProduto")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<ProdutoDTO> criarProduto(@RequestBody ProdutoEntity produto) {
+    public ResponseEntity<?> criarProduto(@RequestPart("produto") ProdutoCreateDTO produtoCreate, @RequestPart(value = "file", required = false) MultipartFile file) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
         var usuarioOpt = usuarioService.findByEmail(email);
         if (usuarioOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProdutoPorUsuario(produto, usuarioOpt.get());
+        ProdutoEntity produto = produtoConverter.toEntityFromCreate(produtoCreate);
+        produto.setUsuario(usuarioOpt.get());
+        if (produtoCreate.getFornecedorId() != null) {
+            // Assumir que há um método para buscar fornecedor
+            // produto.setFornecedor(fornecedorService.buscarPorId(produtoCreate.getFornecedorId()));
+        }
+        ProdutoEntity novoProduto = produtoService.salvarOuAtualizarProduto(produto);
+        if (file != null && !file.isEmpty()) {
+            try {
+                produtoService.salvarComFoto(novoProduto.getId(), file);
+                novoProduto = produtoService.buscarProdutoPorId(novoProduto.getId()).orElse(novoProduto);
+            } catch (RuntimeException e) {
+                // Se foto falhar por validação, deletar produto criado e retornar erro
+                produtoService.deletarProdutoPorId(novoProduto.getId());
+                return ResponseEntity.badRequest().body(e.getMessage());
+            } catch (Exception e) {
+                // Se foto falhar por outro motivo, produto ainda é criado
+                System.err.println("Erro ao salvar foto na criação: " + e.getMessage());
+            }
+        }
         ProdutoDTO dto = produtoConverter.toDTO(novoProduto);
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
@@ -140,13 +161,18 @@ public class ProdutoController {
 
     @PutMapping("/atualizarProduto/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public ResponseEntity<ProdutoDTO> atualizarProduto(@PathVariable Long id, @RequestBody ProdutoEntity produtoAtualizado) {
+    public ResponseEntity<?> atualizarProduto(@PathVariable Long id, @RequestPart("produto") ProdutoEntity produtoAtualizado, @RequestPart(value = "file", required = false) MultipartFile file, @RequestParam(value = "removerFoto", defaultValue = "false") boolean removerFoto) {
         try {
-            ProdutoEntity atualizado = produtoService.atualizarProduto(id, produtoAtualizado);
+            ProdutoEntity atualizado = produtoService.atualizarProdutoComFoto(id, produtoAtualizado, file, removerFoto);
             ProdutoDTO dto = produtoConverter.toDTO(atualizado);
             return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            if (e.getMessage().contains("imagem válida") || e.getMessage().contains("Arquivo deve ser")) {
+                return ResponseEntity.badRequest().body(e.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Produto não encontrado");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro interno: " + e.getMessage());
         }
     }
 
