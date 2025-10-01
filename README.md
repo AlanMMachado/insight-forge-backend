@@ -2,20 +2,6 @@
 
 Sistema de apoio à decisão com análise de dados e gestão de estoque, desenvolvido com Spring Boot, JPA e autenticação JWT.
 
-## 📋 Sumário
-
-- [Visão Geral](#visão-geral)
-- [Tecnologias Utilizadas](#tecnologias-utilizadas)
-- [Arquitetura do Projeto](#arquitetura-do-projeto)
-- [Estrutura do Banco de Dados](#estrutura-do-banco-de-dados)
-- [Configuração e Instalação](#configuração-e-instalação)
-- [Segurança e Autenticação](#segurança-e-autenticação)
-- [Endpoints da API](#endpoints-da-api)
-- [Exemplos de Uso](#exemplos-de-uso)
-- [Funcionalidades Especiais](#funcionalidades-especiais)
-- [Estrutura de Pastas](#estrutura-de-pastas)
-- [Troubleshooting](#troubleshooting)
-
 ## 🎯 Visão Geral
 
 O **Insight Forge** é um sistema backend robusto para apoio à tomada de decisões empresariais, focado em:
